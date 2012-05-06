@@ -103,18 +103,14 @@ public class TrieBuilder {
 
 		final int k = (value == null ? 0 : ~(0xffff)) | c;
 		final int v = (value == null) ? -1 : value;
-		final int size = (value == null) ? 0 : 1;
-		final int parent = this.path.isEmpty() ? -1 : this.path.peek();
 		final int child = -1;
-		final int sibling = -1;
+		final int right = -1;
 		
 		// we add 6 items
 		this.data.add(k);
 		this.data.add(v);
-		this.data.add(size); // unneccessary?
-		this.data.add(parent);
 		this.data.add(child);
-		this.data.add(sibling);
+		this.data.add(right);
 	}
 	
 	private void popNode() {
@@ -173,24 +169,23 @@ public class TrieBuilder {
 		return trie;
 	}
 
-	private void addChildren(final int root, final List<Integer> children) {
-		
-		int size = hasValue(root) ? 1 : 0;
-		
+	private void addChildren(final int parent, final List<Integer> children) {
 		if (children.size() > 0) {
-			setChild(root, children.get(0));
+			setChild(parent, children.get(0));
 		}
+		
+		// link siblings to each other
 		final int length = children.size();
 		for (int i = 0; i < length; i++) {
 			final int child = children.get(i);
-			size += getSize(child);
-			setParent(child, root);
+			setParent(child, parent);
 			if (i < (length - 1)) {
 				final int sibling = children.get(i + 1);
-				setSibling(child, sibling);
+				setRight(child, sibling);
+			} else {
+				setRight(child, -1);
 			}
 		}
-		setSize(root, size);
 	}
 	
 	private char getKey(final int node) {
@@ -205,35 +200,31 @@ public class TrieBuilder {
 		return this.data.get(node + 1);
 	}
 	
-	private int getSize(final int node) {
-		return data.get(node + 2);
-	}
-	
-	private void setSize(final int node, final int size) {
-		data.set(node + 2, size);
-	}
-	
-	private int getParent(final int node) {
-		return data.get(node + 3);
-	}
-	
-	private void setParent(final int node, final int parent) {
-		data.set(node + 3, parent);
+	private void setValue(final int node, final int value) {
+		this.data.set(node + 1, value);
 	}
 	
 	private int getChild(final int node) {
-		return data.get(node + 4);
+		return data.get(node + 2);
 	}
 	
 	private void setChild(final int node, final int child) {
-		data.set(node + 4, child);
+		data.set(node + 2, child);
 	}
 	
-	private int getSibling(final int node) {
-		return data.get(node + 5);
+	private int getRight(final int node) {
+		return data.get(node + 3);
 	}
 	
-	private void setSibling(final int node, final int sibling) {
-		data.set(node + 5, sibling);
-	}	
+	private void setRight(final int node, final int sibling) {
+		data.set(node + 3, sibling);
+	}
+	
+	private int getParent(final int node) {
+		return data.get(node + 4);
+	}
+	
+	private void setParent(final int node, final int parent) {
+		data.set(node + 4, parent);
+	}
 }
