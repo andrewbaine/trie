@@ -41,7 +41,6 @@ public class Trie implements SortedMap<CharSequence, Integer> {
 			index = (x < c) ? leftSibling(index) : rightSibling(index);
 		}
 	}
-
 	
 	// a node in the trie takes up 6 spaces
 	//    (0) a character and a boolean indicating containsKey
@@ -58,7 +57,6 @@ public class Trie implements SortedMap<CharSequence, Integer> {
 	private boolean nodeContainsKey(final int node) {
 		return (data[node] & (~(0xffff))) != 0;
 	}
-	
 	
 	private int nodeValue(final int node) {
 		return data[node + 1];
