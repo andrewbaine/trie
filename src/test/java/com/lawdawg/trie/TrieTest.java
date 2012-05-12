@@ -1,10 +1,8 @@
 package com.lawdawg.trie;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,50 +16,56 @@ import org.slf4j.LoggerFactory;
 
 public class TrieTest extends TestCase {
 	
+	private static final String WORDS = "words";
 	private static final Logger logger = LoggerFactory.getLogger(TrieTest.class);
 
-	private final Map<String, Integer> map = Collections.unmodifiableMap(map());
-	private final Trie trie = trie();
+	private final Map<String, Character> map = Collections.unmodifiableMap(map());
+	private final ByteBuffer trie = rawTrie();
 
-	@Test
-	public void testSize() {
-		logger.info("begin testing size");
-		assertEquals(235886, map.size());
-		assertEquals(235886, trie.size());
-		logger.info("finished testing size");
-	}
-	
-	@Test
-	public void testSerialize() throws FileNotFoundException, IOException {
-		final OutputStream out = new FileOutputStream("src/test/resources/trie.dat");
-		TrieWriter.writeTrie(trie, out);
-		out.close();
+	private static final Character computeValue(final String key) {
+		return Character.toUpperCase(key.charAt(0));
 	}
 
-	private Map<String, Integer> map() {
-		final Map<String, Integer> map = new HashMap<String, Integer>();
-		final InputStream in = this.getClass().getResourceAsStream("words.txt");
+	private Map<String, Character> map() {
+		final Map<String, Character> map = new HashMap<String, Character>();
+		
+		final InputStream in = this.getClass().getResourceAsStream(WORDS);
 		final Scanner scanner = new Scanner(in);
 		while (scanner.hasNextLine()) {
-			final String line = scanner.nextLine();
-			final int x = line.lastIndexOf("\t");
-			final String key = line.substring(0, x);
-			final Integer value = Integer.parseInt(line.substring(x + 1));
+			final String key = scanner.nextLine().toLowerCase();
+			final Character value = computeValue(key);
 			map.put(key, value);
 		}
 		scanner.close();
 		return map;
 	}
-	
-	private Trie trie() {
-		final InputStream in = this.getClass().getResourceAsStream("words.txt");
-		final Trie trie = new TrieBuilder().buildTrie(in);
-		try {
-			in.close();
-		} catch (IOException e) {
-			fail("couldn't close words.txt");
-		}
-		return trie;
-	}
 
+	private ByteBuffer rawTrie() {
+		final TrieBuilder tb = new TrieBuilder();
+		
+		final InputStream in = this.getClass().getResourceAsStream(WORDS);
+		final Scanner scanner = new Scanner(in);
+		while (scanner.hasNextLine()) {
+			final String key = scanner.nextLine().toLowerCase();
+			final Character value = computeValue(key);
+//			logger.info("putting {} -> {}", key, value);
+			tb.put(key, (byte)(char)value);
+		}
+		tb.cleanup();
+		return tb.getData();
+	}
+	
+	@Test
+	public void testTrie() {
+		logger.info("begin: {}", System.currentTimeMillis());
+		final RawTrieReader reader = new RawTrieReader(trie);
+		for (Map.Entry<String, Character> e : map.entrySet()) {
+			final String key = e.getKey();
+			final Character expectedValue = e.getValue();
+			final Character actualValue = reader.get(key);
+//			logger.info("testing that {} -> {}", key, expectedValue);
+			assertEquals(expectedValue, actualValue);
+		}
+		logger.info("end: {}", System.currentTimeMillis());
+	}
 }

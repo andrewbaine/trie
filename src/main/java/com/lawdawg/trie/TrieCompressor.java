@@ -1,13 +1,17 @@
 package com.lawdawg.trie;
 
+import java.nio.ByteBuffer;
+
 public class TrieCompressor {
 
-	public void compress() {
-		// iterate over the nodes INORDER
-		// under certain circumstances just add in the children node as 'extra characters'
+	private final ByteBuffer data;
+	
+	public TrieCompressor(final ByteBuffer raw) {
+		this.data = raw;
 	}
 	
-	private void addExtraCharacter(final int node, final char c) {
+	public void compress() {
 		
 	}
+
 }
