@@ -7,6 +7,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TrieBuffer {
+
+	// an uncompressed node stores the following information
+	// FIELD	OFFSET	BYTES
+	// keyLength	 0		1
+	// flags		 1		1
+	// value		 2		4
+	// left			 6		4
+	// right		10		4
+	// child		14		4
+	// key			18		n, where n < Byte.MAX_VALUE
 	
 	private int keyLengthOffset(final int node) {
 		return node;
@@ -109,15 +119,12 @@ public class TrieBuffer {
 
 	public void appendKey(final int node, final ByteBuffer key) {
 		final int keyLength = key.remaining();
-		if (keyLength > Byte.MAX_VALUE) {
-			throw new IllegalArgumentException("key is too long");
-		}
-		
+		this.setKeyLength(node, keyLength);
+
 		ensure(nodeLength(node));
 		buffer.position(keyOffset(node));
-		buffer.put(key);
-		
-		buffer.put(keyLengthOffset(node), (byte)keyLength);
+		buffer.put(key);		
+
 	}
 
 	public int nodeLength(int node) {
@@ -127,8 +134,15 @@ public class TrieBuffer {
 	public int getKeyLength(int node) {
 		return this.buffer.get(keyLengthOffset(node));
 	}
+	
+	public void setKeyLength(final int node, final int keyLength) {
+		if (keyLength > Byte.MAX_VALUE) {
+			throw new IllegalArgumentException();
+		}
+		this.buffer.put(this.keyLengthOffset(node), (byte) keyLength);	
+	}
 
-	public int getKeyCharAt(int node, int index) {
+	public byte getKeyCharAt(int node, int index) {
 		return buffer.get(keyOffset(node) + index);
 	}
 
@@ -141,6 +155,10 @@ public class TrieBuffer {
 
 	public boolean isCompressed(final int node) {
 		return (this.getFlags(node) & COMPRESSED_FLAG) != 0;		
+	}
+	
+	public void setIsCompressed(final int node) {
+		setFlags(node, (byte)(getFlags(node) | COMPRESSED_FLAG));
 	}
 	
 	public boolean hasLeft(final int node) {
@@ -247,21 +265,68 @@ public class TrieBuffer {
 		}
 	}
 
-	public void compressInPlace(final int node) {
-		// first we compress the path
-		while (hasChild(node) && !hasValue(node)) {
-			int child = getChild(node);
-			if (!hasLeft(child) && !hasRight(child)) {
-				// append key
-				// set value
-				// set left
-				// set right
-				// set child
-			} else {
-				break;
-			}
+	private boolean hasOnlyOneChild(final int node) {
+		if (hasChild(node)) {
+			final int child = getChild(node);
+			return !(hasRight(child) || hasLeft(child));
+		} else {
+			return false;
 		}
-		//  now we compress the node data itself
+	}
+	
+	public void compressInPlace(final int node) {
+
+		// first we compress the path
 		
+		while (!hasValue(node) && hasOnlyOneChild(node)) {
+			int child = getChild(node);
+			
+			this.setValue(node, this.getValue(child));
+			this.setLeft(node, this.getLeft(child));
+			this.setRight(node, this.getRight(child));
+			this.setChild(node, this.getChild(child));
+			
+			final int length = this.getKeyLength(child);
+			this.buffer.position(this.nodeEnd(node));
+			for (int i = 0; i < length; i++) {
+				this.buffer.put(this.getKeyCharAt(child, i));
+			}
+			final int newLength = length + this.getKeyLength(node);
+			this.setKeyLength(node, newLength);
+		}		
+		
+		//  now we compress the node data itself
+		// the candidates for compressionare:
+		//    - value
+		//    - left
+		//    - right
+		//    - child
+		final Integer value = this.getValue(node);
+		final Integer left = this.getLeft(node);
+		final Integer right = this.getRight(node);
+		final Integer child = this.getChild(node);
+		
+		// the key must be moved over as well
+		this.buffer.clear();
+		final ByteBuffer key = this.buffer.slice();
+		key.position(this.keyOffset(node));
+		key.limit(this.nodeEnd(node));
+		
+		// from now on any reads on this node are INVALID
+		this.setIsCompressed(node);
+		this.buffer.position(this.valueOffset(node));
+		if (value != null) {
+			this.setValue(node, value);
+		}
+		if (left != null) {
+			this.setLeft(node, left);
+		}
+		if (right != null) {
+			this.setRight(node, right);
+		}
+		if (child != null) {
+			this.setChild(node, child);
+		}
+		this.appendKey(node, key);
 	}
 }
