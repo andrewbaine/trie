@@ -14,18 +14,19 @@ import org.slf4j.LoggerFactory;
 public class TrieBuilder {
 	
 	private static final Logger logger = LoggerFactory.getLogger(TrieBuilder.class);
-	
-	private final ValueBuffer valueBuffer = new ValueBuffer();
-	private final TrieBuffer trieBuffer = new TrieBuffer();
+	private final ValueBuffer valueBuffer;
+	private final TrieBuffer trieBuffer;
+	private final ByteBuffer bb = ByteBuffer.wrap(new byte[1]);
 
-	public TrieBuilder() {
+	private int node = 0;
+
+	public TrieBuilder(final int trieCapacity, final int valueCapacity) {
+		valueBuffer = new ValueBuffer(valueCapacity);
+		trieBuffer = new TrieBuffer(trieCapacity);
 		pushFreshListOntoChildrenStack();
 		pushNode(null, null);
 	}
 
-	private int node = 0;
-	private final ByteBuffer bb = ByteBuffer.wrap(new byte[1]);
-	
 	// move <node> forward one
 	private void pushNode(final Byte key, final ByteBuffer value) {
 
@@ -170,9 +171,16 @@ public class TrieBuilder {
 		while (!path.empty()) {
 			popNode();
 		}
+		logger.info("uncompressed trie size: {}", node);
+		logger.info("uncompressed value size: {}", valueBuffer.position());
+		compress();
 	}
 
 	public RawTrieReader getReader() {
 		return new RawTrieReader(this.trieBuffer, this.valueBuffer);
+	}
+	
+	private void compress() {
+		
 	}
 }

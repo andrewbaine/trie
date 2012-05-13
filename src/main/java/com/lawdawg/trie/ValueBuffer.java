@@ -8,7 +8,11 @@ import org.slf4j.LoggerFactory;
 public class ValueBuffer {
 
 	private static final Logger logger = LoggerFactory.getLogger(ValueBuffer.class);
-	private ByteBuffer buffer = ByteBuffer.allocate(1024);
+	private ByteBuffer buffer;
+	
+	public ValueBuffer(final int capacity) {
+		this.buffer = ByteBuffer.allocate(capacity);
+	}
 	
 	public int position() {
 		return this.buffer.position();

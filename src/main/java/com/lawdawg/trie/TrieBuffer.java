@@ -16,52 +16,56 @@ public class TrieBuffer {
 	private static final int KEY_OFFSET = 18;
 
 
+
+	private static final Logger logger = LoggerFactory.getLogger(TrieBuffer.class);
+	private ByteBuffer buffer;
+	
+	public TrieBuffer(final int capacity) {
+		this.buffer = ByteBuffer.allocate(capacity);
+	}
+	
 	public void appendNode(int node) {
 		ensure(node + 18);
-		data.position(node);
-		data.put((byte) 0); // key_length
-		data.put((byte) 0); // flags
-		data.putInt(0);     // value_position
-		data.putInt(0);     // left
-		data.putInt(0);     // right
-		data.putInt(0);     // child
-		final int position = data.position();
+		buffer.position(node);
+		buffer.put((byte) 0); // key_length
+		buffer.put((byte) 0); // flags
+		buffer.putInt(0);     // value_position
+		buffer.putInt(0);     // left
+		buffer.putInt(0);     // right
+		buffer.putInt(0);     // child
+		final int position = buffer.position();
 		if (position - node != 18) {
 			throw new RuntimeException("unexpected node length");
 		}
 	}
-
-	private static final Logger logger = LoggerFactory.getLogger(TrieBuffer.class);
-	
-	private ByteBuffer data = ByteBuffer.allocate(32);
 	
 	/**
 	 * make sure we can add length bytes to data
 	 * @param length
 	 */
 	private void ensure(final int requiredCapacity) {
-		final int capacity = data.capacity();
+		final int capacity = buffer.capacity();
 		if (capacity < requiredCapacity) {
 			logger.info("begin increasing capacity from {}", capacity);
 			final int newCapacity = (requiredCapacity > (2 * capacity)) ? 
 					requiredCapacity : (2 * capacity);
 			final ByteBuffer newBuffer = ByteBuffer.allocate(newCapacity);
 
-			this.data.flip();
-			newBuffer.put(this.data);
-			this.data = newBuffer;
+			this.buffer.flip();
+			newBuffer.put(this.buffer);
+			this.buffer = newBuffer;
 
-			logger.info("finished increasing capacity to {}", data.capacity());
+			logger.info("finished increasing capacity to {}", buffer.capacity());
 		}
 	}
 	
 	public void position(final int position) {
-		this.data.position(position);
+		this.buffer.position(position);
 	}
 
 	public void setValuePosition(final int node, final int vp) {
-		data.putInt(node + VALUE_POSITION_OFFSET, vp);
-		data.put(node + FLAGS_OFFSET, (byte)1);
+		buffer.putInt(node + VALUE_POSITION_OFFSET, vp);
+		buffer.put(node + FLAGS_OFFSET, (byte)1);
 	}
 
 	public void appendKey(final int node, final ByteBuffer key) {
@@ -71,10 +75,10 @@ public class TrieBuffer {
 		}
 		
 		ensure(node + KEY_OFFSET + keyLength);
-		data.position(node + KEY_OFFSET);
-		data.put(key);
+		buffer.position(node + KEY_OFFSET);
+		buffer.put(key);
 		
-		data.put(node + KEY_LENGTH_OFFSET, (byte)keyLength);
+		buffer.put(node + KEY_LENGTH_OFFSET, (byte)keyLength);
 	}
 
 	public int nodeLength(int node) {
@@ -82,11 +86,11 @@ public class TrieBuffer {
 	}
 
 	public int getKeyLength(int node) {
-		return this.data.get(node + KEY_LENGTH_OFFSET);
+		return this.buffer.get(node + KEY_LENGTH_OFFSET);
 	}
 
 	public int getKeyCharAt(int node, int index) {
-		return data.get(node + KEY_OFFSET + index);
+		return buffer.get(node + KEY_OFFSET + index);
 	}
 
 	private static final byte VALUE_FLAG = 1;
@@ -96,7 +100,7 @@ public class TrieBuffer {
 	
 	public Integer getLeft(final int node) {
 		if ((this.getFlags(node) & LEFT_FLAG) != 0) {
-			return data.getInt(node + LEFT_OFFSET);
+			return buffer.getInt(node + LEFT_OFFSET);
 		} else {
 			return null;
 		}
@@ -104,7 +108,7 @@ public class TrieBuffer {
 
 	public Integer getRight(final int node) {
 		if ((this.getFlags(node) & RIGHT_FLAG) != 0) {
-			return data.getInt(node + RIGHT_OFFSET);
+			return buffer.getInt(node + RIGHT_OFFSET);
 		} else {
 			return null;
 		}
@@ -112,7 +116,7 @@ public class TrieBuffer {
 	
 	public Integer getChild(final int node) {
 		if ((this.getFlags(node) & CHILD_FLAG) != 0) {
-			return data.getInt(node + CHILD_OFFSET);
+			return buffer.getInt(node + CHILD_OFFSET);
 		} else {
 			return null;
 		}
@@ -121,27 +125,27 @@ public class TrieBuffer {
 	public void setLeft(final int node, final int left) {
 		checkOrder(left, getChild(node), getRight(node));
 		setFlags(node, (byte)(getFlags(node) | LEFT_FLAG));
-		data.putInt(node + LEFT_OFFSET, left);
+		buffer.putInt(node + LEFT_OFFSET, left);
 	}
 	
 	public void setRight(final int node, final int right) {
 		checkOrder(getLeft(node), getChild(node), right);
 		setFlags(node, (byte)(getFlags(node) | RIGHT_FLAG));
-		data.putInt(node + RIGHT_OFFSET, right);
+		buffer.putInt(node + RIGHT_OFFSET, right);
 	}
 	
 	public void setChild(final int node, final int child) {
 		checkOrder(getLeft(node), child, getRight(node));
 		setFlags(node, (byte)(getFlags(node) | CHILD_FLAG));
-		data.putInt(node + CHILD_OFFSET, child);
+		buffer.putInt(node + CHILD_OFFSET, child);
 	}
 	
 	public byte getFlags(final int node) {
-		return data.get(node + FLAGS_OFFSET);
+		return buffer.get(node + FLAGS_OFFSET);
 	}
 	
 	public void setFlags(final int node, final byte flags) {
-		data.put(node + FLAGS_OFFSET, flags);
+		buffer.put(node + FLAGS_OFFSET, flags);
 	}
 	
 	private static void checkOrder(final Integer left, final Integer child, final Integer right) {
@@ -164,6 +168,6 @@ public class TrieBuffer {
 	}
 
 	public Integer getValue(Integer node) {
-		return hasValue(node) ? data.getInt(node + VALUE_POSITION_OFFSET) : null;
+		return hasValue(node) ? buffer.getInt(node + VALUE_POSITION_OFFSET) : null;
 	}
 }

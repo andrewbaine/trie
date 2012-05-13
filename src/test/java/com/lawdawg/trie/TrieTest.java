@@ -20,7 +20,6 @@ public class TrieTest extends TestCase {
 	private static final Logger logger = LoggerFactory.getLogger(TrieTest.class);
 
 	private final Map<String, Character> map = Collections.unmodifiableMap(map());
-	private final RawTrieReader trie = rawTrie();
 
 	private static final Character computeValue(final String key) {
 		return Character.toUpperCase(key.charAt(key.length() - 1));
@@ -41,7 +40,7 @@ public class TrieTest extends TestCase {
 	}
 
 	private RawTrieReader rawTrie() {
-		final TrieBuilder tb = new TrieBuilder();
+		final TrieBuilder tb = new TrieBuilder(16 * 1024 * 1024, 2 * 1024 * 1024);
 			
 		final InputStream in = this.getClass().getResourceAsStream(WORDS);
 		final Scanner scanner = new Scanner(in);
@@ -58,7 +57,8 @@ public class TrieTest extends TestCase {
 	@Test
 	public void testTrie() {
 		logger.info("begin: {}", System.currentTimeMillis());
-		final RawTrieReader reader = this.trie;
+		final RawTrieReader reader = rawTrie();
+		logger.info("trie created: {}", System.currentTimeMillis());
 		for (Map.Entry<String, Character> e : map.entrySet()) {
 			final String key = e.getKey();
 			final Character expectedValue = e.getValue();
