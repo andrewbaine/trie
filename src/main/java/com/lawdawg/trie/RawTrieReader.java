@@ -3,21 +3,42 @@ package com.lawdawg.trie;
 import java.nio.ByteBuffer;
 
 public class RawTrieReader {
-	
-	private final ByteBuffer data;
 
-	public RawTrieReader(final ByteBuffer raw) {
-		this.data = raw;
+	private final TrieBuffer trie;
+	private final ValueBuffer value;
+
+	public RawTrieReader(final TrieBuffer trie, final ValueBuffer value) {
+		this.trie = trie;
+		this.value = value;
+	}
+	
+	// returns -1 if we need to move right
+	// returns 0 if this node is a prefix match;
+	// returns 1 if if we need to move left
+	public int compareThisNodeToPrefix(final int node, final ByteBuffer key, final int start) {
+		final int nodeLength = trie.getKeyLength(node);
+		for (int i = 0; i < nodeLength; i++) {
+			if (i + start < key.limit()) {
+				final int diff = trie.getKeyCharAt(node, i) - key.get(i + start);
+				if (diff != 0) {
+					return diff;
+				}
+			} else {
+				return 1; // the key has more characters than this node, we need to move left
+			}
+			
+		}
+		return 0;
 	}
 
-	private Integer matchChild(Integer node, final CharSequence chars, final int start) {
-		Integer child = RawTrieNode.getChild(data, node);
+	private Integer matchChild(Integer node, final ByteBuffer chars, final int start) {
+		Integer child = trie.getChild(node);
 		while (child != null) {
-			final int comp = RawTrieNode.compareThisNodeToPrefix(data, child, chars, start);
+			final int comp = this.compareThisNodeToPrefix(child, chars, start);
 			if (comp > 0) {
-				child = RawTrieNode.getLeft(data, child);
+				child = trie.getLeft(child);
 			} else if (comp < 0) {
-				child = RawTrieNode.getRight(data, child);
+				child = trie.getRight(child);
 			} else {
 				return child;
 			}
@@ -25,24 +46,17 @@ public class RawTrieReader {
 		return null;
 	}
 	
-	public final Character get(final CharSequence chars) {
+	public final ByteBuffer get(final ByteBuffer chars) {
 		Integer node = 0;
-		int i = 0;
-		final int length = chars.length();
-		while (true) {
-			Integer child = matchChild(node, chars, i);
-			if (child == null) {
-				return null;
-			} else {
-				final int increment = RawTrieNode.getN(data, child);
-				i += increment;
-				node = child;
-				if (i == length) {
-					final Byte value = RawTrieNode.getValue(data, node);
-					return value == null ? null : (char)(byte)value;
-				}
-			}
+		int start = 0;
+		final int length = chars.remaining();
+		while (node != null) {
+			start += this.trie.getKeyLength(node);
+			if (start == length) {
+				return trie.hasValue(node) ? value.get(trie.getValue(node)) : null;
+			} else 
+			node = matchChild(node, chars, start);
 		}
-		
+		return null;
 	}
 }

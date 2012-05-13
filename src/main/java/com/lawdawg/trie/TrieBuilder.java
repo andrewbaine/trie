@@ -13,42 +13,10 @@ import org.slf4j.LoggerFactory;
 
 public class TrieBuilder {
 	
-	private ByteBuffer data = ByteBuffer.allocate(4096);
-
-	private void ensureCapacity(final int capacity) {
-		final int limit = data.limit();
-		if (capacity >= limit) {
-			final int newLength = 2 * limit;
-			logger.info("begin increasing capacity to {}", newLength);
-			data.position(limit);
-			data.flip();
-			ByteBuffer newData = ByteBuffer.allocate(newLength);
-			newData.put(data);
-			data = newData;
-			logger.info("finished increasing capacity to {}", newLength);
-		}
-	}
-
-	private static final char A = 'A';
-	private static final char Z = 'Z';
-	private static final char a = 'a';
-	private static final char z = 'z';
-	private static final char ZERO = '0';
-	private static final char NINE = '9';
-	
-	private static boolean isValidKeyCharacter(final char ch) {
-		if (A <= ch && ch <= Z) {
-			return true;
-		} else if (a <= ch && ch <= z) {
-			return true;
-		} else if (ZERO <= ch && ch <= NINE) {
-			return true;
-		} else {
-			return ch == (byte)'-';
-		}
-	}
-
 	private static final Logger logger = LoggerFactory.getLogger(TrieBuilder.class);
+	
+	private final ValueBuffer valueBuffer = new ValueBuffer();
+	private final TrieBuffer trieBuffer = new TrieBuffer();
 
 	public TrieBuilder() {
 		pushFreshListOntoChildrenStack();
@@ -56,24 +24,39 @@ public class TrieBuilder {
 	}
 
 	private int node = 0;
+	private final ByteBuffer bb = ByteBuffer.wrap(new byte[1]);
+	
 	// move <node> forward one
-	private void pushNode(final Byte key, final Byte value) {
-
-		final int length = RawTrieNode.getNodeLength(data, node);
-		this.ensureCapacity(node + length);
+	private void pushNode(final Byte key, final ByteBuffer value) {
 
 		this.path.push(node);
-		this.prefix.push(key == null ? null : (char)(byte)key);
 		this.childrenStack.peek().add(node); // this list includes all of the siblings of this node
 
-		RawTrieNode.setKey(data, node, key);
-		RawTrieNode.setValue(data, node, value);
+		this.trieBuffer.appendNode(node);
+		
+		if (key != null) {
+			bb.clear();
+			bb.put(0, key);
+			this.trieBuffer.appendKey(node, bb);			
+		}
+
+
+		if (value != null) {
+			final int valuePosition = this.valueBuffer.position();
+			this.valueBuffer.put(value);
+			this.trieBuffer.setValuePosition(node, valuePosition);
+		}
 		
 		pushFreshListOntoChildrenStack();
-		this.node += length;
+		final int expected = 18 + ((key == null) ? 0 : 1);
+		final int actual = this.trieBuffer.nodeLength(node);
+		if (expected != actual) {
+			logger.info("expected {} but got {} actual", expected, actual);
+			throw new RuntimeException();
+		}
+		node += actual;
 	}
-	
-	private final Stack<Character> prefix = new Stack<Character>();
+
 	private final Stack<Integer> path = new Stack<Integer>();
 	
 	private final List<List<Integer>> lists = new ArrayList<List<Integer>>();
@@ -90,55 +73,57 @@ public class TrieBuilder {
 	}
 	
 	private void popNode() {
-		this.prefix.pop();
 		final int parent = this.path.pop();
 		final List<Integer> children = this.childrenStack.pop();
 		this.linkChildren(parent, children);
 	}
 	
-	public void put(final CharSequence key, final byte value) {
-		if (data.get(16) == 0) {
-			System.out.println("still 0");
-		}
-		if ("aba".equals(key)) {
-			System.out.println("here we are");
-		}
-		final int keyLength = key.length();
-		int shared = 0;
-		for (Character c : this.prefix) {
-			if (c != null) {
-				if (shared < keyLength && key.charAt(shared) == (char)c) {
-					++shared;
-				} else {
+	public void put(final ByteBuffer key, final ByteBuffer value) {
+		final int keyLength = key.limit();
+		
+		int sharedNode = 0;
+		int sharedPrefix = 0;
+		for (Integer node : this.path) {
+			final int length = this.trieBuffer.getKeyLength(node);
+			int shared = 0;
+			boolean match = true;
+			for (int i = 0; i < length; i++) {
+				if (sharedPrefix + shared == keyLength ||
+						trieBuffer.getKeyCharAt(node, i) != key.get(sharedPrefix + shared)) {
+					match = false;
 					break;
-				}				
+				} else {
+					++shared;
+				}
+			}
+			if (!match) {
+				key.position(0);
+				break;
+			} else {
+				sharedNode++;
+				sharedPrefix += shared;
 			}
 		}
 
 		// this key shares <s> characters with our current path
 		// rewind to the node in the 
-		while (shared + 1 < prefix.size()) {
+		while (sharedNode < path.size()) {
 			popNode();
 		}
 
-		for (int i = shared; i < keyLength; i++) {
-			final char c = Character.toLowerCase(key.charAt(i));
-			if (isValidKeyCharacter(c)) {	
-				pushNode((byte) c, value);
-			} else {
-				throw new IllegalArgumentException(key.toString());
-			}
+		for (int i = sharedPrefix; i < keyLength - 1; i++) {
+			final byte b = key.get(i);
+			pushNode(b, null);
 		}
-		if (data.get(16) == 0) {
-			System.out.println("the shit has hit the fan");
-		}
+		// note, this will choke on 0-length keys, oh well
+		pushNode(key.get(keyLength - 1), value);
 	}
 
 	private void linkChildren(final int parent, final List<Integer> children) {
 		if (children.size() > 0) {
 			final int length = children.size();
 			final int middle = length / 2;
-			RawTrieNode.setChild(this.data, parent, children.get(middle));
+			this.trieBuffer.setChild(parent, children.get(middle));
 			// link siblings to each other
 			linkSiblings(children);
 		}
@@ -164,12 +149,7 @@ public class TrieBuilder {
 					final int nextStart = start;
 					final int nextEnd = middle;
 					final int nextMiddle = (nextStart + nextEnd) / 2;
-
-					// middle.left = nextMiddle
-					if (children.get(middle) == children.get(nextMiddle)) {
-						System.out.println("wtf");
-					}
-					RawTrieNode.setLeft(this.data, children.get(middle), children.get(nextMiddle));
+					this.trieBuffer.setLeft(children.get(middle), children.get(nextMiddle));
 					enqueue(nextStart, nextEnd);
 				}
 				if (middle < end) {
@@ -178,7 +158,7 @@ public class TrieBuilder {
 					final int nextMiddle = (nextStart + nextEnd) / 2;
 					if (nextMiddle < end) {
 						// middle.right = nextMiddle
-						RawTrieNode.setRight(this.data, children.get(middle), children.get(nextMiddle));
+						this.trieBuffer.setRight(children.get(middle), children.get(nextMiddle));
 						enqueue(nextStart, nextEnd);
 					}
 				}
@@ -187,14 +167,12 @@ public class TrieBuilder {
 	}
 
 	public void cleanup() {
-		logger.info("begin cleanup");
 		while (!path.empty()) {
 			popNode();
 		}
-		logger.info("finished cleanup");
 	}
 
-	public ByteBuffer getData() {
-		return this.data;
+	public RawTrieReader getReader() {
+		return new RawTrieReader(this.trieBuffer, this.valueBuffer);
 	}
 }

@@ -20,10 +20,10 @@ public class TrieTest extends TestCase {
 	private static final Logger logger = LoggerFactory.getLogger(TrieTest.class);
 
 	private final Map<String, Character> map = Collections.unmodifiableMap(map());
-	private final ByteBuffer trie = rawTrie();
+	private final RawTrieReader trie = rawTrie();
 
 	private static final Character computeValue(final String key) {
-		return Character.toUpperCase(key.charAt(0));
+		return Character.toUpperCase(key.charAt(key.length() - 1));
 	}
 
 	private Map<String, Character> map() {
@@ -40,31 +40,32 @@ public class TrieTest extends TestCase {
 		return map;
 	}
 
-	private ByteBuffer rawTrie() {
+	private RawTrieReader rawTrie() {
 		final TrieBuilder tb = new TrieBuilder();
-		
+			
 		final InputStream in = this.getClass().getResourceAsStream(WORDS);
 		final Scanner scanner = new Scanner(in);
 		while (scanner.hasNextLine()) {
 			final String key = scanner.nextLine().toLowerCase();
 			final Character value = computeValue(key);
-//			logger.info("putting {} -> {}", key, value);
-			tb.put(key, (byte)(char)value);
+			//logger.info("putting {} -> {}", key, value);
+			tb.put(ByteBuffer.wrap(key.getBytes()), ByteBuffer.wrap(new byte[] {(byte)(char)value}));
 		}
 		tb.cleanup();
-		return tb.getData();
+		return tb.getReader();
 	}
-	
+
 	@Test
 	public void testTrie() {
 		logger.info("begin: {}", System.currentTimeMillis());
-		final RawTrieReader reader = new RawTrieReader(trie);
+		final RawTrieReader reader = this.trie;
 		for (Map.Entry<String, Character> e : map.entrySet()) {
 			final String key = e.getKey();
 			final Character expectedValue = e.getValue();
-			final Character actualValue = reader.get(key);
+			final ByteBuffer buffer = reader.get(ByteBuffer.wrap(key.getBytes()));
 //			logger.info("testing that {} -> {}", key, expectedValue);
-			assertEquals(expectedValue, actualValue);
+			final Character c = buffer == null ? null : (char)buffer.get();
+			assertEquals(expectedValue, c);
 		}
 		logger.info("end: {}", System.currentTimeMillis());
 	}
