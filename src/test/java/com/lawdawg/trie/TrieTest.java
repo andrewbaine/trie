@@ -1,6 +1,5 @@
 package com.lawdawg.trie;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Collections;
