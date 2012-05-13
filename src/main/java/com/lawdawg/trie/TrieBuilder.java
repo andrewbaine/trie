@@ -26,6 +26,10 @@ public class TrieBuilder {
 		pushFreshListOntoChildrenStack();
 		pushNode(null, null);
 	}
+	
+	public RawTrieReader getReader() {
+		return new RawTrieReader(this.trieBuffer, this.valueBuffer);
+	}
 
 	// move <node> forward one
 	private void pushNode(final Byte key, final ByteBuffer value) {
@@ -33,7 +37,7 @@ public class TrieBuilder {
 		this.path.push(node);
 		this.childrenStack.peek().add(node); // this list includes all of the siblings of this node
 
-		this.trieBuffer.appendNode(node);
+		this.trieBuffer.appendUncompressedNode(node);
 		
 		if (key != null) {
 			bb.clear();
@@ -45,7 +49,7 @@ public class TrieBuilder {
 		if (value != null) {
 			final int valuePosition = this.valueBuffer.position();
 			this.valueBuffer.put(value);
-			this.trieBuffer.setValuePosition(node, valuePosition);
+			this.trieBuffer.setValue(node, valuePosition);
 		}
 		
 		pushFreshListOntoChildrenStack();
@@ -176,11 +180,31 @@ public class TrieBuilder {
 		compress();
 	}
 
-	public RawTrieReader getReader() {
-		return new RawTrieReader(this.trieBuffer, this.valueBuffer);
+	
+	public void orderChildren(final int node, final List<Integer> children) {
+		children.clear();
+		if (trieBuffer.hasChild(node)) {
+			int child = trieBuffer.getChild(node);
+		}
 	}
 	
 	private void compress() {
+		/*
+		final Stack<Integer> path = new Stack<Integer>();
 		
+		int compressedNode = 0;
+		final int stop = node + trieBuffer.nodeLength(node);
+		int candidate = 0;
+		while (candidate < stop) {
+			trieBuffer.moveNode(candidate, compressedNode);
+			trieBuffer.compressInPlace(candidate);
+			if (trieBuffer.hasChild(candidate)) {
+				
+			} else {
+//				popCompressedNode();
+			}
+		}
+		*/
 	}
+
 }
