@@ -112,19 +112,11 @@ public class TrieBuffer {
 		this.buffer.position(position);
 	}
 
-	public void setValue(final int node, final int vp) {
-		buffer.putInt(valueOffset(node), vp);
-		buffer.put(flagsOffset(node), (byte)1);
-	}
-
 	public void appendKey(final int node, final ByteBuffer key) {
-		final int keyLength = key.remaining();
-		this.setKeyLength(node, keyLength);
-
+		this.setKeyLength(node, this.getKeyLength(node) + key.remaining());
 		ensure(nodeLength(node));
 		buffer.position(keyOffset(node));
-		buffer.put(key);		
-
+		buffer.put(key);
 	}
 
 	public int nodeLength(int node) {
@@ -196,23 +188,44 @@ public class TrieBuffer {
 			return null;
 		}
 	}
+
+	public void setValue(final int node, final Integer value) {
+		if (value == null) {
+			buffer.put(flagsOffset(node), (byte) (getFlags(node) & ~VALUE_FLAG));
+		} else {
+			buffer.putInt(valueOffset(node), value);
+			setFlags(node, (byte)(getFlags(node) | VALUE_FLAG));
+		}
+	}
 	
-	public void setLeft(final int node, final int left) {
+	public void setLeft(final int node, final Integer left) {
 		checkOrder(left, getChild(node), getRight(node));
-		setFlags(node, (byte)(getFlags(node) | LEFT_FLAG));
-		buffer.putInt(leftOffset(node), left);
+		if (left == null) {
+			setFlags(node, (byte)(getFlags(node) & ~LEFT_FLAG));			
+		} else {
+			setFlags(node, (byte)(getFlags(node) | LEFT_FLAG));
+			buffer.putInt(leftOffset(node), left);
+		}
 	}
 	
-	public void setRight(final int node, final int right) {
+	public void setRight(final int node, final Integer right) {
 		checkOrder(getLeft(node), getChild(node), right);
-		setFlags(node, (byte)(getFlags(node) | RIGHT_FLAG));
-		buffer.putInt(rightOffset(node), right);
+		if (right == null) {
+			setFlags(node, (byte)(getFlags(node) & ~RIGHT_FLAG));			
+		} else {
+			setFlags(node, (byte)(getFlags(node) | RIGHT_FLAG));
+			buffer.putInt(rightOffset(node), right);
+		}
 	}
 	
-	public void setChild(final int node, final int child) {
+	public void setChild(final int node, final Integer child) {
 		checkOrder(getLeft(node), child, getRight(node));
-		setFlags(node, (byte)(getFlags(node) | CHILD_FLAG));
-		buffer.putInt(childOffset(node), child);
+		if (child == null) {
+			setFlags(node, (byte)(getFlags(node) & ~CHILD_FLAG));
+		} else {
+			setFlags(node, (byte)(getFlags(node) | CHILD_FLAG));
+			buffer.putInt(childOffset(node), child);
+		}
 	}
 	
 	public byte getFlags(final int node) {
@@ -273,11 +286,12 @@ public class TrieBuffer {
 			return false;
 		}
 	}
-	
+
 	public void compressInPlace(final int node) {
+		this.buffer.clear();
+		final ByteBuffer sourceKey = this.buffer.slice();
 
 		// first we compress the path
-		
 		while (!hasValue(node) && hasOnlyOneChild(node)) {
 			int child = getChild(node);
 			
@@ -286,13 +300,9 @@ public class TrieBuffer {
 			this.setRight(node, this.getRight(child));
 			this.setChild(node, this.getChild(child));
 			
-			final int length = this.getKeyLength(child);
-			this.buffer.position(this.nodeEnd(node));
-			for (int i = 0; i < length; i++) {
-				this.buffer.put(this.getKeyCharAt(child, i));
-			}
-			final int newLength = length + this.getKeyLength(node);
-			this.setKeyLength(node, newLength);
+			sourceKey.position(this.keyOffset(child));
+			sourceKey.limit(this.nodeEnd(child));
+			this.appendKey(node, sourceKey);			
 		}		
 		
 		//  now we compress the node data itself
