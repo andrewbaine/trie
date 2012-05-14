@@ -2,7 +2,6 @@ package com.lawdawg.trie;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -14,20 +13,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TrieTest extends TestCase {
-	
-	private static final String WORDS = "words";
-	private static final Logger logger = LoggerFactory.getLogger(TrieTest.class);
 
-	private final Map<String, Character> map = Collections.unmodifiableMap(map());
+	private static final Logger logger = LoggerFactory.getLogger(TrieTest.class);
 
 	private static final Character computeValue(final String key) {
 		return Character.toUpperCase(key.charAt(key.length() - 1));
 	}
 
-	private Map<String, Character> map() {
+	private Map<String, Character> map(final String filename) {
 		final Map<String, Character> map = new HashMap<String, Character>();
 		
-		final InputStream in = this.getClass().getResourceAsStream(WORDS);
+		final InputStream in = this.getClass().getResourceAsStream(filename);
 		final Scanner scanner = new Scanner(in);
 		while (scanner.hasNextLine()) {
 			final String key = scanner.nextLine().toLowerCase();
@@ -38,34 +34,42 @@ public class TrieTest extends TestCase {
 		return map;
 	}
 
-	private RawTrieReader rawTrie() {
-		final TrieBuilder tb = new TrieBuilder(16 * 1024 * 1024, 2 * 1024 * 1024);
+	private RawTrieReader rawTrie(final String filename) {
+		final TrieBuilder tb = new TrieBuilder(1024 * 1024, 1024 * 1024);
 			
-		final InputStream in = this.getClass().getResourceAsStream(WORDS);
+		final InputStream in = this.getClass().getResourceAsStream(filename);
 		final Scanner scanner = new Scanner(in);
 		while (scanner.hasNextLine()) {
 			final String key = scanner.nextLine().toLowerCase();
 			final Character value = computeValue(key);
 			//logger.info("putting {} -> {}", key, value);
-			tb.put(ByteBuffer.wrap(key.getBytes()), ByteBuffer.wrap(new byte[] {(byte)(char)value}));
+			tb.put(ByteBuffer.wrap(key.getBytes()), value);
 		}
 		tb.cleanup();
+		scanner.close();
 		return tb.getReader();
 	}
 
 	@Test
 	public void testTrie() {
-		logger.info("begin: {}", System.currentTimeMillis());
-		final RawTrieReader reader = rawTrie();
-		logger.info("trie created: {}", System.currentTimeMillis());
+		for (int i = 0; i < 10; i++) {
+			test("words." + i + ".txt");
+		}
+	}
+	
+	public void test(final String filename) {
+		logger.info("begin testing {}", filename);
+		final RawTrieReader reader = rawTrie(filename);
+		final Map<String, Character> map =  map(filename);
 		for (Map.Entry<String, Character> e : map.entrySet()) {
 			final String key = e.getKey();
 			final Character expectedValue = e.getValue();
-			final ByteBuffer buffer = reader.get(ByteBuffer.wrap(key.getBytes()));
-//			logger.info("testing that {} -> {}", key, expectedValue);
-			final Character c = buffer == null ? null : (char)buffer.get();
+			final Integer value = reader.get(ByteBuffer.wrap(key.getBytes()));
+			logger.info("testing that {} -> {}", key, expectedValue);
+			final Character c = value == null ? null : (char)(int)value;
 			assertEquals(expectedValue, c);
 		}
-		logger.info("end: {}", System.currentTimeMillis());
+
+		logger.info("finished testing {}", filename);
 	}
 }
