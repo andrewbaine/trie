@@ -1,10 +1,14 @@
 
 package com.lawdawg.trie;
 
+import java.awt.HeadlessException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Stack;
 
@@ -14,25 +18,24 @@ import org.slf4j.LoggerFactory;
 public class TrieBuilder {
 	
 	private static final Logger logger = LoggerFactory.getLogger(TrieBuilder.class);
-	private final ValueBuffer valueBuffer;
+
 	private final TrieBuffer trieBuffer;
 	private final ByteBuffer bb = ByteBuffer.wrap(new byte[1]);
 
 	private int node = 0;
 
 	public TrieBuilder(final int trieCapacity, final int valueCapacity) {
-		valueBuffer = new ValueBuffer(valueCapacity);
 		trieBuffer = new TrieBuffer(trieCapacity);
 		pushFreshListOntoChildrenStack();
 		pushNode(null, null);
 	}
 	
 	public RawTrieReader getReader() {
-		return new RawTrieReader(this.trieBuffer, this.valueBuffer);
+		return new RawTrieReader(this.trieBuffer);
 	}
 
 	// move <node> forward one
-	private void pushNode(final Byte key, final ByteBuffer value) {
+	private void pushNode(final Byte key, final Integer value) {
 
 		this.path.push(node);
 		this.childrenStack.peek().add(node); // this list includes all of the siblings of this node
@@ -45,21 +48,15 @@ public class TrieBuilder {
 			this.trieBuffer.appendKey(node, bb);			
 		}
 
-
-		if (value != null) {
-			final int valuePosition = this.valueBuffer.position();
-			this.valueBuffer.put(value);
-			this.trieBuffer.setValue(node, valuePosition);
-		}
+		this.trieBuffer.setValue(node, value);
 		
 		pushFreshListOntoChildrenStack();
-		final int expected = 18 + ((key == null) ? 0 : 1);
-		final int actual = this.trieBuffer.nodeLength(node);
-		if (expected != actual) {
-			logger.info("expected {} but got {} actual", expected, actual);
+		final int expected = node + 18 + ((key == null) ? 0 : 1);
+		node = this.trieBuffer.nodeEnd(node);
+		if (expected != node) {
+			logger.info("expected {} but got {} actual", expected, node);
 			throw new RuntimeException();
 		}
-		node += actual;
 	}
 
 	private final Stack<Integer> path = new Stack<Integer>();
@@ -83,7 +80,7 @@ public class TrieBuilder {
 		this.linkChildren(parent, children);
 	}
 	
-	public void put(final ByteBuffer key, final ByteBuffer value) {
+	public void put(final ByteBuffer key, final int value) {
 		final int keyLength = key.limit();
 		
 		int sharedNode = 0;
@@ -176,7 +173,6 @@ public class TrieBuilder {
 			popNode();
 		}
 		logger.info("uncompressed trie size: {}", node);
-		logger.info("uncompressed value size: {}", valueBuffer.position());
 		compress();
 	}
 
@@ -187,22 +183,82 @@ public class TrieBuilder {
 			int child = trieBuffer.getChild(node);
 		}
 	}
+
+	private static class N {
+		public N(final int node, final int depth) {
+			this.node = node;
+			this.depth = depth;
+		}
+		public final int node;
+		public final int depth;
+	}
 	
 	private void compress() {
 		/*
-		final Stack<Integer> path = new Stack<Integer>();
+		final Stack<Integer> s = new Stack<Integer>();
+		final PriorityQueue<Integer> pq = new PriorityQueue<Integer>();
 		
-		int compressedNode = 0;
-		final int stop = node + trieBuffer.nodeLength(node);
-		int candidate = 0;
-		while (candidate < stop) {
-			trieBuffer.moveNode(candidate, compressedNode);
-			trieBuffer.compressInPlace(candidate);
-			if (trieBuffer.hasChild(candidate)) {
-				
+		final Stack<List<Integer>> childrenStack = new Stack<List<Integer>>();
+		
+		final Stack<N> uncompressed = new Stack<N>();
+		uncompressed.push(new N(0, 0));
+
+		int previousDepth = -1;
+		for (int compressedNode = 0; !uncompressed.isEmpty(); compressedNode = trieBuffer.nodeEnd(compressedNode)) {
+
+			final N n = uncompressed.pop();
+			final int node = n.node;
+			final int depth = n.depth;
+			
+			if (depth < previousDepth) {
+				if (depth != previousDepth - 1) {
+					logger.error("we should not ascend more than 1 link at a time");
+					throw new RuntimeException();
+				}
+				final List<Integer> children = childrenStack.pop();
+				linkChildren(node, children);
+
+				// we're moving back up the tree; no compression is necessary
+				// but its now safe to link this node's children
 			} else {
-//				popCompressedNode();
+				if (depth > previousDepth) { // we just moved down
+					if (depth != previousDepth + 1) {
+						logger.error("we should not descend more than 1 link at a time");
+						throw new RuntimeException();						
+					}
+					final ArrayList<Integer> siblings = new ArrayList<Integer>();
+					childrenStack.push(siblings);
+				}
+
+				// we moved down or across
+				childrenStack.peek().add(compressedNode);
+				trieBuffer.moveNode(node, compressedNode);
+				trieBuffer.compressInPlace(compressedNode);
+				//
+				if (trieBuffer.hasChild(compressedNode)) {
+					// put it back on the stack and add its children at a greater depth
+					uncompressed.push(new N(compressedNode, depth));
+					
+					pq.clear();
+					s.clear();
+					s.push(trieBuffer.getChild(node));
+					while (!s.isEmpty()) {
+						int x = s.pop();
+						pq.add(-1 * x);
+						if (trieBuffer.hasLeft(x)) {
+							s.push(trieBuffer.getLeft(x));
+						}
+						if (trieBuffer.hasRight(x)) {
+							s.push(trieBuffer.getRight(x));
+						}
+					}
+					while (!pq.isEmpty()) {
+						final int x = pq.remove();
+						uncompressed.push(new N(-1 * x, depth + 1));
+					}
+				}
 			}
+			previousDepth = depth;
 		}
 		*/
 	}

@@ -62,7 +62,7 @@ public class TrieBuffer {
 		}		
 	}
 	
-	private int nodeEnd(final int node) {
+	public int nodeEnd(final int node) {
 		return keyOffset(node) + getKeyLength(node);
 	}
 
@@ -114,15 +114,11 @@ public class TrieBuffer {
 
 	public void appendKey(final int node, final ByteBuffer key) {
 		this.setKeyLength(node, this.getKeyLength(node) + key.remaining());
-		ensure(nodeLength(node));
+		ensure(nodeEnd(node));
 		buffer.position(keyOffset(node));
 		buffer.put(key);
 	}
-
-	public int nodeLength(int node) {
-		return 18 + getKeyLength(node);
-	}
-
+	
 	public int getKeyLength(int node) {
 		return this.buffer.get(keyLengthOffset(node));
 	}
@@ -269,10 +265,12 @@ public class TrieBuffer {
 			logger.error("cannot move from {} to {}", source, destination);
 			throw new IllegalArgumentException();
 		} else if (destination < source) {
-			final int length = this.nodeLength(source);
-			for (int i = 0; i < length; i++) {
-				this.buffer.put(destination + i, this.buffer.get(source + i));
-			}
+			this.buffer.clear();
+			final ByteBuffer sourceBuffer = this.buffer.slice();
+			sourceBuffer.position(source);
+			sourceBuffer.limit(nodeEnd(source));
+			this.buffer.position(destination);
+			this.buffer.put(sourceBuffer);
 		} else {
 			// noop
 		}
@@ -299,10 +297,10 @@ public class TrieBuffer {
 			this.setLeft(node, this.getLeft(child));
 			this.setRight(node, this.getRight(child));
 			this.setChild(node, this.getChild(child));
-			
-			sourceKey.position(this.keyOffset(child));
+
 			sourceKey.limit(this.nodeEnd(child));
-			this.appendKey(node, sourceKey);			
+			sourceKey.position(this.keyOffset(child));
+			this.appendKey(node, sourceKey);
 		}		
 		
 		//  now we compress the node data itself
@@ -337,6 +335,7 @@ public class TrieBuffer {
 		if (child != null) {
 			this.setChild(node, child);
 		}
+		this.setKeyLength(node, 0);
 		this.appendKey(node, key);
 	}
 }

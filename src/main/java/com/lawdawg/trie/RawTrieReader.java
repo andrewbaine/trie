@@ -5,11 +5,9 @@ import java.nio.ByteBuffer;
 public class RawTrieReader {
 
 	private final TrieBuffer trie;
-	private final ValueBuffer value;
 
-	public RawTrieReader(final TrieBuffer trie, final ValueBuffer value) {
+	public RawTrieReader(final TrieBuffer trie) {
 		this.trie = trie;
-		this.value = value;
 	}
 	
 	// returns -1 if we need to move right
@@ -46,14 +44,18 @@ public class RawTrieReader {
 		return null;
 	}
 	
-	public final ByteBuffer get(final ByteBuffer chars) {
+	public final Integer get(final ByteBuffer chars) {
 		Integer node = 0;
 		int start = 0;
 		final int length = chars.remaining();
+		final int comp = this.compareThisNodeToPrefix(node, chars, 0);
+		if (comp != 0) { // root node is not a prefix of chars
+			return null;
+		}
 		while (node != null) {
 			start += this.trie.getKeyLength(node);
 			if (start == length) {
-				return trie.hasValue(node) ? value.get(trie.getValue(node)) : null;
+				return trie.getValue(node);
 			} else 
 			node = matchChild(node, chars, start);
 		}
