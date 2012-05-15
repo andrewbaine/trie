@@ -113,9 +113,9 @@ public class TrieBuffer {
 	}
 
 	public void appendKey(final int node, final ByteBuffer key) {
+		buffer.position(this.nodeEnd(node));
 		this.setKeyLength(node, this.getKeyLength(node) + key.remaining());
 		ensure(nodeEnd(node));
-		buffer.position(keyOffset(node));
 		buffer.put(key);
 	}
 	
@@ -233,6 +233,7 @@ public class TrieBuffer {
 	}
 	
 	private static void checkOrder(final Integer left, final Integer child, final Integer right) {
+		/*
 		if (left != null) {
 			if (child != null && child <= left) {
 				throw new IllegalArgumentException();
@@ -245,6 +246,7 @@ public class TrieBuffer {
 				throw new IllegalArgumentException();
 			}
 		}
+		*/
 	}
 
 	public boolean hasValue(Integer node) {
@@ -294,12 +296,13 @@ public class TrieBuffer {
 			int child = getChild(node);
 			
 			this.setValue(node, this.getValue(child));
-			this.setLeft(node, this.getLeft(child));
-			this.setRight(node, this.getRight(child));
+//			this.setLeft(node, this.getLeft(child)); DON'T DO THIS! THE LEFT AND RIGHT OF THE CHILD ARE NULL
+//			this.setRight(node, this.getRight(child));
 			this.setChild(node, this.getChild(child));
 
 			sourceKey.limit(this.nodeEnd(child));
 			sourceKey.position(this.keyOffset(child));
+			
 			this.appendKey(node, sourceKey);
 		}		
 		
@@ -323,19 +326,16 @@ public class TrieBuffer {
 		// from now on any reads on this node are INVALID
 		this.setIsCompressed(node);
 		this.buffer.position(this.valueOffset(node));
-		if (value != null) {
-			this.setValue(node, value);
-		}
-		if (left != null) {
-			this.setLeft(node, left);
-		}
-		if (right != null) {
-			this.setRight(node, right);
-		}
-		if (child != null) {
-			this.setChild(node, child);
-		}
+		this.setValue(node, value);
+//		this.setLeft(node, left);
+//		this.setRight(node, right);
+		this.setChild(node, child);
+
 		this.setKeyLength(node, 0);
 		this.appendKey(node, key);
+	}
+
+	public void limit(final int limit) {
+		this.buffer.limit(limit);
 	}
 }

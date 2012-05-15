@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.TreeMap;
 
 import junit.framework.TestCase;
 
@@ -21,7 +22,7 @@ public class TrieTest extends TestCase {
 	}
 
 	private Map<String, Character> map(final String filename) {
-		final Map<String, Character> map = new HashMap<String, Character>();
+		final Map<String, Character> map = new TreeMap<String, Character>();
 		
 		final InputStream in = this.getClass().getResourceAsStream(filename);
 		final Scanner scanner = new Scanner(in);
@@ -52,24 +53,38 @@ public class TrieTest extends TestCase {
 
 	@Test
 	public void testTrie() {
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 9; i++) {
 			test("words." + i + ".txt");
 		}
 	}
 	
+	@Test
+	public void testBig() {
+		test("words.full");
+	}
+	
+	@Test
+	public void testRandom() {
+		for (int i = 0; i < 100; i++) {
+			test("random/words." + i + ".random");
+		}
+	}
+
 	public void test(final String filename) {
 		logger.info("begin testing {}", filename);
 		final RawTrieReader reader = rawTrie(filename);
 		final Map<String, Character> map =  map(filename);
+		boolean pass = true;
 		for (Map.Entry<String, Character> e : map.entrySet()) {
 			final String key = e.getKey();
 			final Character expectedValue = e.getValue();
+//			logger.info("testing that {} -> {}", key, expectedValue);
+
 			final Integer value = reader.get(ByteBuffer.wrap(key.getBytes()));
-			logger.info("testing that {} -> {}", key, expectedValue);
 			final Character c = value == null ? null : (char)(int)value;
 			assertEquals(expectedValue, c);
 		}
-
+		assertTrue(pass);
 		logger.info("finished testing {}", filename);
 	}
 }

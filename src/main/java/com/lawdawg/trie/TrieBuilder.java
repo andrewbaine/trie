@@ -1,13 +1,10 @@
 
 package com.lawdawg.trie;
 
-import java.awt.HeadlessException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Stack;
@@ -49,7 +46,6 @@ public class TrieBuilder {
 		}
 
 		this.trieBuffer.setValue(node, value);
-		
 		pushFreshListOntoChildrenStack();
 		final int expected = node + 18 + ((key == null) ? 0 : 1);
 		node = this.trieBuffer.nodeEnd(node);
@@ -176,14 +172,6 @@ public class TrieBuilder {
 		compress();
 	}
 
-	
-	public void orderChildren(final int node, final List<Integer> children) {
-		children.clear();
-		if (trieBuffer.hasChild(node)) {
-			int child = trieBuffer.getChild(node);
-		}
-	}
-
 	private static class N {
 		public N(final int node, final int depth) {
 			this.node = node;
@@ -194,7 +182,6 @@ public class TrieBuilder {
 	}
 	
 	private void compress() {
-		/*
 		final Stack<Integer> s = new Stack<Integer>();
 		final PriorityQueue<Integer> pq = new PriorityQueue<Integer>();
 		
@@ -204,7 +191,8 @@ public class TrieBuilder {
 		uncompressed.push(new N(0, 0));
 
 		int previousDepth = -1;
-		for (int compressedNode = 0; !uncompressed.isEmpty(); compressedNode = trieBuffer.nodeEnd(compressedNode)) {
+		int compressedNode = 0;
+		while (!uncompressed.isEmpty()) {
 
 			final N n = uncompressed.pop();
 			final int node = n.node;
@@ -241,7 +229,7 @@ public class TrieBuilder {
 					
 					pq.clear();
 					s.clear();
-					s.push(trieBuffer.getChild(node));
+					s.push(trieBuffer.getChild(compressedNode));
 					while (!s.isEmpty()) {
 						int x = s.pop();
 						pq.add(-1 * x);
@@ -257,10 +245,11 @@ public class TrieBuilder {
 						uncompressed.push(new N(-1 * x, depth + 1));
 					}
 				}
+				compressedNode = trieBuffer.nodeEnd(compressedNode);
 			}
 			previousDepth = depth;
 		}
-		*/
+		this.trieBuffer.limit(compressedNode);
 	}
 
 }
