@@ -249,6 +249,7 @@ public class TrieBuilder {
 			}
 			previousDepth = depth;
 		}
+		logger.info("compressed size: {}", compressedNode);
 		this.trieBuffer.limit(compressedNode);
 	}
 
