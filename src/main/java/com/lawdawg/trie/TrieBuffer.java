@@ -69,8 +69,8 @@ public class TrieBuffer {
 	private static final Logger logger = LoggerFactory.getLogger(TrieBuffer.class);
 	private ByteBuffer buffer;
 	
-	public TrieBuffer(final int capacity) {
-		this.buffer = ByteBuffer.allocate(capacity);
+	public TrieBuffer(final ByteBuffer buffer) {
+		this.buffer = buffer;
 	}
 	
 	public void appendUncompressedNode(int node) {
@@ -337,5 +337,9 @@ public class TrieBuffer {
 
 	public void limit(final int limit) {
 		this.buffer.limit(limit);
+	}
+
+	public ByteBuffer getBuffer() {
+		return this.buffer;
 	}
 }

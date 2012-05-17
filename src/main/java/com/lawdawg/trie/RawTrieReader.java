@@ -6,8 +6,8 @@ public class RawTrieReader {
 
 	private final TrieBuffer trie;
 
-	public RawTrieReader(final TrieBuffer trie) {
-		this.trie = trie;
+	public RawTrieReader(final ByteBuffer buffer) {
+		this.trie = new TrieBuffer(buffer);
 	}
 	
 	// returns -1 if we need to move right

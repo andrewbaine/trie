@@ -21,14 +21,10 @@ public class TrieBuilder {
 
 	private int node = 0;
 
-	public TrieBuilder(final int trieCapacity, final int valueCapacity) {
-		trieBuffer = new TrieBuffer(trieCapacity);
+	public TrieBuilder(final int trieCapacity) {
+		trieBuffer = new TrieBuffer(ByteBuffer.allocate(trieCapacity));
 		pushFreshListOntoChildrenStack();
 		pushNode(null, null);
-	}
-	
-	public RawTrieReader getReader() {
-		return new RawTrieReader(this.trieBuffer);
 	}
 
 	// move <node> forward one
@@ -251,6 +247,10 @@ public class TrieBuilder {
 		}
 		logger.info("compressed size: {}", compressedNode);
 		this.trieBuffer.limit(compressedNode);
+	}
+
+	public ByteBuffer getBuffer() {
+		return this.trieBuffer.getBuffer();
 	}
 
 }
