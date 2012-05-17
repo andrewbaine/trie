@@ -2,7 +2,6 @@ package com.lawdawg.trie;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.TreeMap;

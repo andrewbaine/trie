@@ -2,8 +2,8 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.lawdawg</groupId>
   <artifactId>trie</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
-  <name>graph</name>
+  <version>1.0</version>
+  <name>trie</name>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
