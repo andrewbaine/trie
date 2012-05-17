@@ -1,6 +1,9 @@
 package com.lawdawg.trie;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Scanner;
@@ -11,6 +14,8 @@ import junit.framework.TestCase;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.lawdawg.trie.util.Util;
 
 public class TrieTest extends TestCase {
 
@@ -34,8 +39,8 @@ public class TrieTest extends TestCase {
 		return map;
 	}
 
-	private RawTrieReader rawTrie(final String filename) {
-		final TrieBuilder tb = new TrieBuilder(1024 * 1024, 1024 * 1024);
+	private ByteBuffer rawTrie(final String filename) {
+		final TrieBuilder tb = new TrieBuilder(1024 * 1024);
 			
 		final InputStream in = this.getClass().getResourceAsStream(filename);
 		final Scanner scanner = new Scanner(in);
@@ -47,7 +52,7 @@ public class TrieTest extends TestCase {
 		}
 		tb.cleanup();
 		scanner.close();
-		return tb.getReader();
+		return tb.getBuffer();
 	}
 
 	@Test
@@ -71,7 +76,7 @@ public class TrieTest extends TestCase {
 
 	public void test(final String filename) {
 		logger.info("begin testing {}", filename);
-		final RawTrieReader reader = rawTrie(filename);
+		final RawTrieReader reader = new RawTrieReader(rawTrie(filename));
 		final Map<String, Character> map =  map(filename);
 		boolean pass = true;
 		for (Map.Entry<String, Character> e : map.entrySet()) {
@@ -85,5 +90,12 @@ public class TrieTest extends TestCase {
 		}
 		assertTrue(pass);
 		logger.info("finished testing {}", filename);
+	}
+	
+	@Test
+	public void testBarf() throws IOException {
+		final OutputStream out = new FileOutputStream("barfed");
+		Util.barf(rawTrie("words.full"), out);
+		out.close();
 	}
 }
