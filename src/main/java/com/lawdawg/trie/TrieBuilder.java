@@ -199,11 +199,10 @@ public class TrieBuilder {
 					logger.error("we should not ascend more than 1 link at a time");
 					throw new RuntimeException();
 				}
-				final List<Integer> children = childrenStack.pop();
-				linkChildren(node, children);
-
 				// we're moving back up the tree; no compression is necessary
 				// but its now safe to link this node's children
+				final List<Integer> children = childrenStack.pop();
+				linkChildren(node, children);
 			} else {
 				if (depth > previousDepth) { // we just moved down
 					if (depth != previousDepth + 1) {

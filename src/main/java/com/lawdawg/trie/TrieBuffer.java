@@ -294,27 +294,18 @@ public class TrieBuffer {
 		// first we compress the path
 		while (!hasValue(node) && hasOnlyOneChild(node)) {
 			int child = getChild(node);
-			
 			this.setValue(node, this.getValue(child));
-//			this.setLeft(node, this.getLeft(child)); DON'T DO THIS! THE LEFT AND RIGHT OF THE CHILD ARE NULL
-//			this.setRight(node, this.getRight(child));
 			this.setChild(node, this.getChild(child));
-
 			sourceKey.limit(this.nodeEnd(child));
 			sourceKey.position(this.keyOffset(child));
-			
 			this.appendKey(node, sourceKey);
 		}		
 		
 		//  now we compress the node data itself
 		// the candidates for compressionare:
 		//    - value
-		//    - left
-		//    - right
 		//    - child
 		final Integer value = this.getValue(node);
-		final Integer left = this.getLeft(node);
-		final Integer right = this.getRight(node);
 		final Integer child = this.getChild(node);
 		
 		// the key must be moved over as well
@@ -327,8 +318,6 @@ public class TrieBuffer {
 		this.setIsCompressed(node);
 		this.buffer.position(this.valueOffset(node));
 		this.setValue(node, value);
-//		this.setLeft(node, left);
-//		this.setRight(node, right);
 		this.setChild(node, child);
 
 		this.setKeyLength(node, 0);
