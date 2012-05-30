@@ -1,5 +1,6 @@
 package com.lawdawg.trie;
 
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,7 +28,7 @@ public class TrieTest extends TestCase {
 
 	private Map<String, Character> map(final String filename) {
 		final Map<String, Character> map = new TreeMap<String, Character>();
-		
+
 		final InputStream in = this.getClass().getResourceAsStream(filename);
 		final Scanner scanner = new Scanner(in);
 		while (scanner.hasNextLine()) {
@@ -41,7 +42,7 @@ public class TrieTest extends TestCase {
 
 	private ByteBuffer rawTrie(final String filename) {
 		final TrieBuilder tb = new TrieBuilder(1024 * 1024);
-			
+
 		final InputStream in = this.getClass().getResourceAsStream(filename);
 		final Scanner scanner = new Scanner(in);
 		while (scanner.hasNextLine()) {
@@ -56,21 +57,25 @@ public class TrieTest extends TestCase {
 	}
 
 	@Test
-	public void testTrie() {
+	public void testTrie() throws IOException {
 		for (int i = 0; i < 9; i++) {
-			test("words." + i + ".txt");
+			final String file = "words." + i + ".txt";
+			test(file);
+			testSlurp(file);
 		}
 	}
-	
+
 	@Test
-	public void testBig() {
+	public void testBig() throws IOException {
 		test("words.full");
+		testSlurp("words.full");
 	}
-	
+
 	@Test
-	public void testRandom() {
+	public void testRandom() throws IOException {
 		for (int i = 0; i < 100; i++) {
 			test("random/words." + i + ".random");
+			testSlurp("random/words." + i + ".random");
 		}
 	}
 
@@ -82,7 +87,7 @@ public class TrieTest extends TestCase {
 		for (Map.Entry<String, Character> e : map.entrySet()) {
 			final String key = e.getKey();
 			final Character expectedValue = e.getValue();
-//			logger.info("testing that {} -> {}", key, expectedValue);
+			//			logger.info("testing that {} -> {}", key, expectedValue);
 
 			final Integer value = reader.get(ByteBuffer.wrap(key.getBytes()));
 			final Character c = value == null ? null : (char)(int)value;
@@ -91,11 +96,32 @@ public class TrieTest extends TestCase {
 		assertTrue(pass);
 		logger.info("finished testing {}", filename);
 	}
-	
+
+	public void testSlurp(final String filename) throws IOException {
+		logger.info("begin testing slurp");
+		final Map<String, Character> map =  map(filename);
+
+		FileOutputStream out = new FileOutputStream("tmpxxx");
+		Util.barf(rawTrie(filename), out);
+		out.close();
+
+		final FileInputStream in = new FileInputStream("tmpxxx");
+		RawTrieReader reader = new RawTrieReader(ByteBuffer.wrap(Util.slurp(in)));
+
+		for (Map.Entry<String, Character> e : map.entrySet()) {
+			final String key = e.getKey();
+			final Character expectedValue = e.getValue();
+			final Integer value = reader.get(ByteBuffer.wrap(key.getBytes()));
+			final Character c = value == null ? null : (char)(int)value;
+			assertEquals(expectedValue, c);
+		}
+	}
+
 	@Test
 	public void testBarf() throws IOException {
 		final OutputStream out = new FileOutputStream("barfed");
 		Util.barf(rawTrie("words.full"), out);
 		out.close();
 	}
+
 }

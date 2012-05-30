@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.util.Scanner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +30,7 @@ public class Util {
 		for (int i = 0; i < n; i++) {
 			data[i] = din.readByte();
 		}
+		logger.info("finished reading");
 		return data;
 	}
 }
